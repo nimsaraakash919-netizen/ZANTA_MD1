@@ -5,7 +5,7 @@ const {
     jidNormalizedUser,
     getContentType,
     fetchLatestBaileysVersion,
-    Browsers,
+    Browsers
 } = require('@whiskeysockets/baileys');
 
 const fs = require('fs');
@@ -16,7 +16,7 @@ const path = require('path');
 const qrcode = require('qrcode-terminal');
 
 const config = require('./config');
-const { sms } = require('./lib/msg'); // Note: Assuming downloadMediaMessage is no longer imported here
+const { sms, downloadMediaMessage } = require('./lib/msg');
 const {
     getBuffer, getGroupAdmins, getRandom, h2k, isUrl, Json, runtime, sleep, fetchJson
 } = require('./lib/functions');
@@ -77,26 +77,6 @@ async function connectToWA() {
         markOnlineOnConnect: true,
         generateHighQualityLinkPreview: true,
     });
-
-    // 🔑 FINAL FIX: loadMessage functionality added to zanta object using getMessages
-    zanta.loadMessage = async (jid, id) => {
-        try {
-            // Use getMessages to fetch the required single message by ID
-            const messages = await zanta.getMessages(jid, {
-                limit: 1,
-                messages: [{ id: id }]
-            });
-
-            if (messages.length > 0) {
-                return messages[0];
-            }
-            return null; // Return null if message is not found
-        } catch (error) {
-            console.error("zanta.loadMessage failed in core:", error);
-            return null;
-        }
-    };
-    // 🔑 END FIX
 
     zanta.ev.on('connection.update', async (update) => {
         const { connection, lastDisconnect } = update;
@@ -162,33 +142,6 @@ async function connectToWA() {
         const isAdmins = isGroup ? groupAdmins.includes(sender) : false;
 
         const reply = (text) => zanta.sendMessage(from, { text }, { quoted: mek });
-        
-        // 🔑 FINAL STATUS MEDIA FIX - Core Logic Injection 🔑
-        const quotedMsg = mek.message.extendedTextMessage?.contextInfo?.quotedMessage;
-        const quotedJid = mek.message.extendedTextMessage?.contextInfo?.remoteJid;
-        const quotedID = mek.message.extendedTextMessage?.contextInfo?.stanzaId;
-
-        // 1. Check if it's a reply to a Status
-        if (quotedMsg && quotedJid === 'status@broadcast' && quotedID) {
-            // 2. Load the original status message to get the Media Key
-            const fullStatusMessage = await zanta.loadMessage(
-                'status@broadcast', 
-                quotedID 
-            );
-
-            if (fullStatusMessage && fullStatusMessage.message) {
-                // 3. Extract the inner media message (which contains the media key)
-                const innerMessage = fullStatusMessage.message.viewOnceMessage 
-                                    ? fullStatusMessage.message.viewOnceMessage.message 
-                                    : fullStatusMessage.message;
-                
-                // 4. Inject the full message object into the 'quoted' object (mek)
-                // This makes the crucial 'mediaKey' available for the save.js plugin.
-                mek.quoted.message = innerMessage; 
-            }
-        }
-        // 🔑 END STATUS MEDIA FIX 🔑
-
 
         if (isCmd) {
             const cmd = commands.find((c) => c.pattern === commandName || (c.alias && c.alias.includes(commandName)));
