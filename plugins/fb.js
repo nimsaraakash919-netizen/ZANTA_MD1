@@ -66,7 +66,7 @@ cmd(
         from,
         {
           image: {
-            url: "https://github.com/DANUWA-MD/DANUWA-MD/blob/main/images/fbdownloader.png?raw=true",
+            url: "https://github.com/Akashkavindu/ZANTA_MD/blob/main/images/ChatGPT%20Image%20Nov%2023,%202025,%2004_57_09%20AM.png?raw=true",
           },
           caption: desc,
         },
