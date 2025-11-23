@@ -2,7 +2,6 @@ const {
   default: makeWASocket,
   useMultiFileAuthState,
   DisconnectReason,
-  jidNormalizedUser,
   getContentType,
   fetchLatestBaileysVersion,
   Browsers
