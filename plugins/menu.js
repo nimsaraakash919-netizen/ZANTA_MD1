@@ -72,7 +72,7 @@ ${menu.search}
         from,
         {
           image: {
-            url: "https://raw.githubusercontent.com/Dark-Robin/Bot-Helper/refs/heads/main/autoimage/Bot%20robin%20menu.jpg",
+            url: "https://github.com/Akashkavindu/ZANTA_MD/blob/main/images/ChatGPT%20Image%20Nov%2021,%202025,%2001_49_53%20AM.png?raw=true",
           },
           caption: madeMenu,
         },
@@ -84,6 +84,7 @@ ${menu.search}
     }
   }
 );
+
 
 
 
