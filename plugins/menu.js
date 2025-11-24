@@ -1,6 +1,6 @@
 const { cmd, commands } = require("../command");
 
-// 🖼️ MENU Image URL එක
+// 🖼️ MENU Image URL එක 
 const MENU_IMAGE_URL = "https://github.com/Akashkavindu/ZANTA_MD/blob/main/images/ChatGPT%20Image%20Nov%2021,%202025,%2001_49_53%20AM.png?raw=true";
 
 // Helper function to convert number to WhatsApp emoji number (1 -> ➊)
@@ -10,12 +10,12 @@ const numberToEmoji = (num) => {
 };
 
 // -----------------------------------------------------
-// 1. Interactive Menu Categories (ඔබ ලබා දුන් ලැයිස්තුවට අනුව)
+// 1. Interactive Menu Categories 
 // -----------------------------------------------------
 // Key එක (1, 2, 3...) මගින් Category එක තෝරා ගැනීමට
 const commandCategories = {
     "1": { name: "Main", emoji: "🏠", key: "main" },
-    "2": { name: "Genaral", emoji: "📌", key: "other" }, // 'other' ලෙස සලකනු ලැබේ
+    "2": { name: "Genaral", emoji: "📌", key: "other" }, // Mapped to 'other'
     "3": { name: "Download", emoji: "📥", key: "download" },
     "4": { name: "Owner", emoji: "👑", key: "owner" },
     "5": { name: "Search", emoji: "🔍", key: "search" }
@@ -44,9 +44,13 @@ cmd(
             // Commands, Category Key අනුව වෙන් කිරීම
             for (let cmdName in commands) {
                 const cmdData = commands[cmdName];
-                // 'Genaral' key එක 'other' ලෙස map කිරීම
-                const cat = cmdData.category?.toLowerCase() === "genaral" ? "other" : (cmdData.category?.toLowerCase() || "other");
                 
+                // 🚨 මෙතනින් Category Case Sensitivity Fix එක සිදුවේ.
+                let cat = cmdData.category?.toLowerCase() || "other";
+                // 'Genaral' වැනි Keys තිබුණත්, එය 'other' එකට map වේ.
+                if (cat === "genaral") cat = "other"; 
+                // -----------------------------------------------------
+
                 if (cmdData.pattern === "menu") continue;
                 
                 if (!categories[cat]) categories[cat] = [];
@@ -60,7 +64,6 @@ cmd(
             // A. REPLY COMMAND CHECK (Interactive Logic)
             // -----------------------------------------------------
             if (m.q) {
-                // m.q හි Reply number එක ලැබෙනවා
                 const replyNumber = m.q.trim(); 
 
                 if (commandCategories[replyNumber]) {
@@ -88,7 +91,6 @@ cmd(
                     return await reply(categoryText.trim());
 
                 } else {
-                    // වැරදි අංකයක් ලබා දුන් විට
                     return await reply("*❌ වැරදි අංකයක්!* කරුණාකර Menu එකේ ඇති අංකයක් Reply කරන්න.");
                 }
             }
@@ -97,31 +99,30 @@ cmd(
             // B. MAIN MENU GENERATION (Header + Category List)
             // -----------------------------------------------------
             
-            // 1. Welcome Banner (Header) - මුලින්ම මෙය එකතු වේ.
+            // 1. Welcome Banner (Header)
             let menuText = "╭━─━─━─━─━─━─━─━─━╮\n";
             menuText += "┃ 👑 *𝐖𝐄𝐋𝐂𝐎𝐌𝐄 𝐓𝐎 𝐙𝐀𝐍𝐓𝐀-𝐌𝐃* 🤖\n";
             menuText += "┃   _All Available Commands_\n";
             menuText += "╰━─━─━─━─━─━─━─━─━╯\n";
             
-            // 2. Category List Header + Items - දැන් Welcome Banner එකට පහළින් මෙය එකතු වේ.
+            // 2. Category List Header + Items
             menuText += "╭━━〔 📜 MENU LIST 〕━━┈⊷\n";
             menuText += "┃◈╭─────────────·๏\n";
 
             for (const key in commandCategories) {
                 const cat = commandCategories[key];
                 
-                // ➊ Main Menu වැනි Line එකක් නිර්මාණය
                 menuText += `┃◈│ ${numberToEmoji(key)} ${cat.emoji} ${cat.name} Menu\n`; 
             }
 
             menuText += "┃◈╰───────────┈⊷\n";
             menuText += "╰──────────────┈⊷\n\n";
 
-            // 🚨 index.js Logic එකට අවශ්‍ය වන Magic Text එක
+            // 🚨 Magic Text (Interactive Reply එකට අත්‍යවශ්‍යයි)
             menuText += "*Choose a menu option by replying with the number*\n";
 
             // 3. Footer
-            menuText += "\n➖➖➖➖➖➖➖➖➖➖➖\n";
+            menuText += "\n➖➖➖➖➖➖➖➖➖➖➖➖\n";
             menuText += "> © 𝟐𝟎𝟐𝟓 | 𝐀𝐤𝐚𝐬𝐡 𝐊𝐚𝐯𝐢𝐧𝐝𝐮\n";
             
             // SEND IMAGE + MENU TEXT
