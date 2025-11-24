@@ -1,19 +1,40 @@
 const { cmd, commands } = require("../command");
 
-const checkAdminRights = (reply, isGroup, isBotAdmins, isAdmins) => {
+const checkAdminRights = async (zanta, from, reply, isGroup, isAdmins, mek, m) => {
     if (!isGroup) {
         reply("*This command can only be used in a Group!* 🙁");
         return false;
     }
-    if (!isBotAdmins) {
-        reply("*I need to be an Admin in this group to use this command!* 🤖❌");
+
+    // --- 🤖 Bot Admin Status එක නැවත Fetch කර තහවුරු කිරීම ---
+    try {
+        let groupMeta = await zanta.groupMetadata(from);
+        const botJid = zanta.user.id;
+        const senderJid = m.sender;
+        
+        // Group එකේ Admin ලා filter කරගන්න
+        const admins = groupMeta.participants.filter(p => p.admin !== null).map(p => p.id);
+        const isBotAdminNew = admins.includes(botJid);
+        const isUserAdminNew = admins.includes(senderJid);
+
+        if (!isBotAdminNew) {
+            reply("*I need to be an Admin in this group to use this command!* 🤖❌");
+            return false;
+        }
+
+        if (!isUserAdminNew) {
+            reply("*You must be an Admin to use Group Management commands!* 👮‍♂️❌");
+            return false;
+        }
+        
+        // Bot Admin සහ User Admin යන දෙදෙනාම තහවුරුයි
+        return true; 
+        
+    } catch (e) {
+        console.error("Error fetching Group Metadata for Admin check:", e);
+        reply("*Error:* Failed to check admin status. Please try again. 😔");
         return false;
     }
-    if (!isAdmins) {
-        reply("*You must be an Admin to use Group Management commands!* 👮‍♂️❌");
-        return false;
-    }
-    return true;
 };
 
 const getTargetJid = (mentionedJid, quoted) => {
@@ -36,10 +57,11 @@ cmd(
     category: "group",
     filename: __filename,
   },
-  async (zanta, mek, m, { from, reply, isGroup, isBotAdmins, isAdmins, mentionedJid, quoted }) => {
-    try {
-      if (!checkAdminRights(reply, isGroup, isBotAdmins, isAdmins)) return;
+  async (zanta, mek, m, { from, reply, isGroup, isAdmins, mentionedJid, quoted }) => {
+    // isBotAdmins variable එක වෙනුවට checkAdminRights function එක භාවිතා කරයි
+    if (!await checkAdminRights(zanta, from, reply, isGroup, isAdmins, mek, m)) return;
 
+    try {
       const targetJid = getTargetJid(mentionedJid, quoted);
 
       if (!targetJid) {
@@ -48,14 +70,17 @@ cmd(
       
       reply("*Kicking user... 👋*");
       
-      await zanta.groupParticipantsUpdate(from, [targetJid], "remove");
+      const response = await zanta.groupParticipantsUpdate(from, [targetJid], "remove");
+      
+      if (response && response[0] && response[0].status === '403') {
+          return reply("*Failed to kick. The target is likely an owner or a higher-level admin.* 😔");
+      }
       
       return reply(`*User successfully kicked! 🫡✅*`);
       
     } catch (e) {
       console.error(e);
-      // More specific error handling needed for 403 (Target is higher admin)
-      reply(`*Error:* Failed to perform the kick operation. The target might be an admin. ${e.message || e}`);
+      reply(`*Error:* Failed to perform the kick operation. ${e.message || e}`);
     }
   }
 );
@@ -69,10 +94,10 @@ cmd(
     category: "group",
     filename: __filename,
   },
-  async (zanta, mek, m, { from, reply, isGroup, isBotAdmins, isAdmins, mentionedJid, quoted }) => {
-    try {
-      if (!checkAdminRights(reply, isGroup, isBotAdmins, isAdmins)) return;
+  async (zanta, mek, m, { from, reply, isGroup, isAdmins, mentionedJid, quoted }) => {
+    if (!await checkAdminRights(zanta, from, reply, isGroup, isAdmins, mek, m)) return;
 
+    try {
       const targetJid = getTargetJid(mentionedJid, quoted);
 
       if (!targetJid) {
@@ -101,10 +126,10 @@ cmd(
     category: "group",
     filename: __filename,
   },
-  async (zanta, mek, m, { from, reply, isGroup, isBotAdmins, isAdmins, mentionedJid, quoted }) => {
-    try {
-      if (!checkAdminRights(reply, isGroup, isBotAdmins, isAdmins)) return;
+  async (zanta, mek, m, { from, reply, isGroup, isAdmins, mentionedJid, quoted }) => {
+    if (!await checkAdminRights(zanta, from, reply, isGroup, isAdmins, mek, m)) return;
 
+    try {
       const targetJid = getTargetJid(mentionedJid, quoted);
 
       if (!targetJid) {
