@@ -1,5 +1,6 @@
 const { cmd } = require("../command");
 const yts = require("yt-search");
+const config = require("../config"); // BOT_NAME ලබා ගැනීමට
 
 cmd(
   {
@@ -36,10 +37,13 @@ cmd(
       let formattedResults = results.map((v, i) => (
         `🎬 *${i + 1}. ${v.title}*\n📅 ${v.ago} | ⌛ ${v.timestamp} | 👁️ ${v.views.toLocaleString()} views\n🔗 ${v.url}`
       )).join("\n\n");
+      const botName = config.BOT_NAME || "ZANTA-MD"; 
 
       const caption = `  
-Your youtube search results
-─────────────────────────
+╭━─━─━─━─━─━─━─━╮
+┃*${botName} YT Search*
+╰━─━─━─━─━─━─━─━╯
+
 🔎 *Query*: ${q}
 ${formattedResults}
    `;
