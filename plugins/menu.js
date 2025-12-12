@@ -1,15 +1,20 @@
 const { cmd, commands } = require("../command");
 const os = require('os');
-const config = require("../config"); 
+const config = require("../config"); 
 
-// 🖼️ MENU Image URL එක (ඔබගේ code එකේ තිබූ පරිදි)
+// 🖼️ MENU Image URL එක 
 const MENU_IMAGE_URL = "https://raw.githubusercontent.com/Akashkavindu/ZANTA_MD/refs/heads/main/images/ChatGPT%20Image%20Nov%2021%2C%202025%2C%2001_49_53%20AM.png";
+
+// 🎯 Memory Map to store the last sent Menu message ID for reply functionality.
+// Key: Chat ID (from), Value: Message ID (id)
+const lastMenuMessage = new Map(); // 🚨 FIX: මේ Map එක දැන් index.js වෙත Export කළ යුතුය.
 
 cmd(
     {
+        // 🚨 FIX: Pattern එක නැවතත් 'menu' ලෙස පමණක් තබා ඇත.
         pattern: "menu",
         react: "📜",
-        desc: "Displays the main menu.",
+        desc: "Displays the main menu or a category list.",
         category: "main",
         filename: __filename,
     },
@@ -21,32 +26,27 @@ cmd(
             from,
             reply,
             args,
-            prefix 
+            prefix 
         }
     ) => {
         try {
 
-            // 🚨 FIX: Prefix එක නිවැරදිව ලබා ගැනීම
-            const finalPrefix = prefix || config.PREFIX || '.'; 
-
-            // 🌟 Status & Owner Data
-            const botName = config.BOT_NAME || "ZANTA-MD"; 
+            const finalPrefix = prefix || config.PREFIX || '.'; 
+            const botName = config.BOT_NAME || "ZANTA-MD"; 
             const ownerName = config.OWNER_NAME || 'Akash ';
-
-            // සැබෑ RAM/RUNTIME ලබා ගැනීම සඳහා ඔබගේ බොට් එකේ code එකට අදාළ functions භාවිතා කරන්න
             const totalCommands = commands.filter(c => c.pattern).length;
-            const mode = config.WORK_TYPE || "Public"; // Default to Public
+            const mode = config.WORK_TYPE || "Public"; 
 
             // 1. Commands Category අනුව Group කිරීම
             const groupedCommands = {};
-            const activeCommands = commands.filter(c => c.pattern); 
-            const categoryMap = {}; 
-            const categoryKeys = []; 
+            const activeCommands = commands.filter(c => c.pattern); 
+            const categoryMap = {}; 
+            const categoryKeys = []; 
 
             activeCommands.forEach(cmdData => {
                 let cat = cmdData.category?.toLowerCase() || "other";
-                if (cat === "genaral") cat = "other"; 
-                if (cmdData.pattern === "menu") return; 
+                if (cat === "genaral") cat = "other"; 
+                if (cmdData.pattern === "menu") return; 
 
                 if (!groupedCommands[cat]) {
                     groupedCommands[cat] = [];
@@ -57,63 +57,76 @@ cmd(
 
             let catIndexForMap = 1;
             categoryKeys.forEach(cat => {
-                categoryMap[catIndexForMap] = cat; 
+                categoryMap[catIndexForMap] = cat; 
                 catIndexForMap++;
             });
 
 
             // ------------------------------------------------------------------
-            // A. ARGUMENTS MODE: .menu 1 හෝ .menu media යැවූ විට (Commands List)
+            // A. SELECTION LOGIC (Arguments OR Reply)
+            // index.js මගින් reply selection එක args[0] හෝ m.body ලෙස යවන නිසා, 
+            // මෙහිදී සෘජුවම එම අගය ලබාගත හැක.
             // ------------------------------------------------------------------
-            if (args.length > 0) {
 
-                let selectedCategory;
-                const input = args[0].toLowerCase();
+            let selectedCategory;
+            // 🚨 FIX: args[0] හි අගය (උදා: .menu 1) හෝ m.body හි අගය (උදා: Reply කළ 1) ලබා ගැනීම.
+            let selectionText = args[0]?.toLowerCase() || m.body?.toLowerCase(); 
 
-                const num = parseInt(input);
-                if (!isNaN(num) && categoryMap[num]) {
-                    selectedCategory = categoryMap[num];
-                } else {
-                    // Category Name එක හරහා සෙවීම
-                    selectedCategory = categoryKeys.find(cat => cat.toLowerCase() === input);
+            if (selectionText) {
+
+                // .menu 1 ලෙස යැවූ විට .menu ඉවත් කර 1 පමණක් තබා ගැනීම
+                if (selectionText.startsWith(finalPrefix + 'menu')) {
+                    selectionText = selectionText.replace(finalPrefix + 'menu', '').trim().toLowerCase();
+                } else if (selectionText.startsWith('menu')) {
+                    // .menu නැති prefix menu 1 වැනි දේ
+                    selectionText = selectionText.replace('menu', '').trim().toLowerCase();
                 }
 
-                if (selectedCategory && groupedCommands[selectedCategory]) {
-                    // 📄 Selected Category එකේ Commands පෙන්වීම
+                const num = parseInt(selectionText);
 
-                    let displayTitle = selectedCategory.toUpperCase();
-                    if (displayTitle === 'OTHER') displayTitle = 'GENERAL'; 
+                 if (!isNaN(num) && categoryMap[num]) {
+                     selectedCategory = categoryMap[num];
+                 } else {
+                     // Category Name එක හරහා සෙවීම
+                     selectedCategory = categoryKeys.find(cat => cat.toLowerCase() === selectionText);
+                 }
 
-                    // ✨ FANCY COMMAND LIST
-                    let commandList = `*Hello.. ${m.pushName || 'User'}🖐*\n`;
-
-                    commandList += `╭━─━─━─━─━─━─━─━╮\n`;
-                    commandList += `┃🎡 ${displayTitle} Command List:\n`;
-                    commandList += `╰━─━─━─━─━─━─━─━╯\n`;
-
-                    groupedCommands[selectedCategory].forEach((c) => {
-                        const commandPattern = c.pattern.replace(finalPrefix, ''); 
-                        const usage = c.pattern.startsWith(finalPrefix) ? c.pattern : finalPrefix + c.pattern;
-
-                        // desc එකේ පළමු පේළිය පමණක් ගන්න.
-                        const descLine = c.desc ? c.desc.split('\n')[0].trim() : 'No description provided.'; 
-
-                        // use එකට <args> එකතු කිරීමට 
-                        const usageDisplay = c.desc && c.desc.includes('<') ? usage + ' <args>' : usage; 
-
-                        commandList += `\n╭──────────●●►\n`;
-                        commandList += `│⛩ Command ☛ ${commandPattern}\n`; 
-                        commandList += `│🌟 Desc ☛ ${descLine}\n`; 
-                        commandList += `╰──────────●●►\n`;
-                    });
-
-                    commandList += `\n➠ Total Commands in ${displayTitle}: ${groupedCommands[selectedCategory].length}\n`;
-
-                    return reply(commandList); 
-
-                } else {
-                    return reply(`❌ Invalid category number or name: *${args[0]}*\n\nType ${finalPrefix}menu to see available categories.`);
+                // Reply එක successful වූ පසු, ID එක ඉවත් කරන්න. (මෙය index.js මගින් ද කළ හැක.)
+                if (selectedCategory && m.quoted) {
+                     lastMenuMessage.delete(from); 
                 }
+            }
+
+
+            if (selectedCategory && groupedCommands[selectedCategory]) {
+                // 📄 Selected Category එකේ Commands පෙන්වීම
+                let displayTitle = selectedCategory.toUpperCase();
+                if (displayTitle === 'OTHER') displayTitle = 'GENERAL'; 
+
+                let commandList = `*Hello.. ${m.pushName || 'User'}🖐*\n`;
+                commandList += `╭━─━─━─━─━─━─━─━╮\n`;
+                commandList += `┃🎡 ${displayTitle} Command List:\n`;
+                commandList += `╰━─━─━─━─━─━─━─━╯\n`;
+
+                groupedCommands[selectedCategory].forEach((c) => {
+                    const commandPattern = c.pattern.replace(finalPrefix, ''); 
+                    const usage = c.pattern.startsWith(finalPrefix) ? c.pattern : finalPrefix + c.pattern;
+                    const descLine = c.desc ? c.desc.split('\n')[0].trim() : 'No description provided.'; 
+                    const usageDisplay = c.desc && c.desc.includes('<') ? usage + ' <args>' : usage; 
+
+                    commandList += `\n╭──────────●●►\n`;
+                    commandList += `│⛩ Command ☛ ${commandPattern}\n`; 
+                    commandList += `│🌟 Desc ☛ ${descLine}\n`; 
+                    commandList += `╰──────────●●►\n`;
+                });
+
+                commandList += `\n➠ Total Commands in ${displayTitle}: ${groupedCommands[selectedCategory].length}\n`;
+
+                return reply(commandList); 
+
+            } else if (selectionText && !selectedCategory) {
+                 // Invalid argument/reply එකක් දුන්නොත්
+                return reply(`❌ Invalid category number or name: *${selectionText}*\n\nType ${finalPrefix}menu to see available categories.`);
             }
 
 
@@ -121,10 +134,9 @@ cmd(
             // B. MAIN MENU MODE: .menu යැවූ විට (Categories List)
             // ------------------------------------------------------------------
 
-            // ✨ FANCY MAIN MENU
             let menuText = `╭━〔 ${botName} WA BOT 〕━··๏\n`;
             menuText += `┃★╭──────────────\n`;
-            menuText += `┃★│ 👑 Owner : ${ownerName}\n`; 
+            menuText += `┃★│ 👑 Owner : ${ownerName}\n`; 
             menuText += `┃★│ ⚙ Mode : [${mode}]\n`;
             menuText += `┃★│ 🔣 Prefix : [${finalPrefix}]\n`;
             menuText += `┃★│ 📚 Commands : ${totalCommands}\n`;
@@ -133,67 +145,40 @@ cmd(
 
             menuText += `╭━━〔 📜 MENU LIST 〕━━┈⊷\n`;
 
-            let categoryNumber = 1; // අනුක්‍රමික අංකය 1 න් ආරම්භ කිරීම
+            let categoryNumber = 1; 
 
             categoryKeys.forEach(catKey => {
                 const commandCount = groupedCommands[catKey].length;
                 let title = catKey.toUpperCase();
                 if (title === 'OTHER') title = 'GENERAL';
 
-                // Emoji mapping 
                 let emoji;
                 switch (catKey) {
-                    case 'main':
-                        emoji = '🏠';
-                        break;
-                    case 'download':
-                        emoji = '📥';
-                        break;
-                    case 'convert':
-                        emoji = '🔄';
-                        break;
-                    case 'fun':
-                        emoji = '🙃';
-                        break;
-                    case 'game':
-                        emoji = '😎';
-                        break;
-                    case 'group':
-                        emoji = '👥';
-                        break;
-                    case 'image':
-                        emoji = '🖼';
-                        break;
-                    case 'logo':
-                        emoji = '🎨';
-                        break;
-                    case 'owner':
-                        emoji = '👑';
-                        break;
-                    case 'search':
-                        emoji = '🔍';
-                        break;
-                    case 'settings':
-                        emoji = '⚙';
-                        break;
-                    default:
-                        emoji = '📌';
-                        break;
+                    case 'main': emoji = '🏠'; break;
+                    case 'download': emoji = '📥'; break;
+                    case 'convert': emoji = '🔄'; break;
+                    case 'fun': emoji = '🙃'; break;
+                    case 'game': emoji = '😎'; break;
+                    case 'group': emoji = '👥'; break;
+                    case 'media': emoji = '📸'; break; 
+                    case 'search': emoji = '🔍'; break;
+                    default: emoji = '📌'; break;
                 }
 
                 menuText += `┃◈╭─────────────·๏\n`;
-                menuText += `┃◈│ ${categoryNumber}. ${emoji} ${title} (${commandCount})\n`; 
+                menuText += `┃◈│ ${categoryNumber}. ${emoji} ${title} (${commandCount})\n`; 
                 menuText += `┃◈╰───────────┈⊷\n`;
                 categoryNumber++;
             });
 
-            // අවසාන කොටස වසා දැමීම
             menuText += `╰──────────────┈⊷\n`;
 
-            menuText += `\n_💡 Type ${finalPrefix}menu <number> or ${finalPrefix}menu <category> to see commands._`;
+            menuText += `\n_💡 Commands බැලීමට:_\n`;
+            menuText += `_1. *${finalPrefix}menu <අංකය>* ලෙස යවන්න (උදා: ${finalPrefix}menu 1)._\n`;
+            menuText += `_2. *මෙම Menu එකට Reply කර අංකය යවන්න* (උදා: Reply කර 1 යවන්න)._`;
 
             // SEND IMAGE + MENU TEXT
-            await zanta.sendMessage(
+            const sentMessage = await zanta.sendMessage(
                 from,
                 {
                     image: { url: MENU_IMAGE_URL },
@@ -202,6 +187,9 @@ cmd(
                 { quoted: mek }
             );
 
+            // 🎯 Sent Menu Message ID එක Memory එකේ store කිරීම
+            lastMenuMessage.set(from, sentMessage.key.id);
+
         } catch (err) {
             console.error("Menu Command Error:", err);
             reply("❌ Error generating menu.");
@@ -209,3 +197,7 @@ cmd(
     }
 );
 
+// 🚨 FIX: index.js වෙත ප්‍රවේශය සඳහා lastMenuMessage Map එක Export කිරීම
+module.exports = {
+    lastMenuMessage
+};
