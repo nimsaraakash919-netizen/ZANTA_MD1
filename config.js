@@ -23,4 +23,5 @@ ALIVE_IMG: process.env.ALIVE_IMG || "https://raw.githubusercontent.com/Akashkavi
 ALIVE_MSG: process.env.ALIVE_MSG || FINAL_ALIVE_MSG, 
 BOT_OWNER: OWNER_NUMBER, 
 BOT_NAME: DEFAULT_BOT_NAME,
+ALWAYS_ONLINE: process.env.ALWAYS_ONLINE === 'false' // 'true' or 'false'
 };
