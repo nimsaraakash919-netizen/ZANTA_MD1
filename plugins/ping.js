@@ -4,7 +4,7 @@ const { runtime, sleep } = require('../lib/functions'); 
 const config = require("../config"); // BOT_NAME ලබා ගැනීමට
 
 // Image URL එක මෙහි ඇත
-const STATUS_IMAGE_URL = "https://raw.githubusercontent.com/Akashkavindu/ZANTA_MD/refs/heads/main/images/ChatGPT%20Image%20Nov%2020%2C%202025%2C%2009_47_50%20PM.png";
+const STATUS_IMAGE_URL = "https://github.com/Akashkavindu/ZANTA_MD/blob/main/images/alive.jpg?raw=true";
 
 // Helper function to format bytes to a readable string
 function bytesToSize(bytes) {
