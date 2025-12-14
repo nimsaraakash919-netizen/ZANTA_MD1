@@ -72,7 +72,7 @@ cmd(
         from,
         {
           image: {
-            url: "https://raw.githubusercontent.com/Akashkavindu/ZANTA_MD/refs/heads/main/images/ChatGPT%20Image%20Nov%2023%2C%202025%2C%2004_57_09%20AM.png",
+            url: "https://github.com/Akashkavindu/ZANTA_MD/blob/main/images/fb.jpg?raw=true",
           },
           caption: desc,
         },
