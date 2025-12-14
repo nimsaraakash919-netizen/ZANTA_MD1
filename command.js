@@ -12,7 +12,7 @@ function cmd(info, func) {
     if (!data.filename) data.filename = "Not Provided";
     if (!data.fromMe) data.fromMe = false;
 
-    // Register reply-based handler if no pattern and has filter
+    // Register reply-based handler if no pattern and has filter.
     if (!data.pattern && typeof data.filter === "function") {
         replyHandlers.push(data);
     } else {
