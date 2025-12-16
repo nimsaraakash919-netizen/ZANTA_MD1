@@ -39,9 +39,9 @@ const { connectDB, getBotSettings } = require("./plugins/bot_db");
 
 // 🚨 GLOBAL SETTINGS (Bot Name, Prefix, Owner Name Database එකෙන් Load කිරීමට)
 global.CURRENT_BOT_SETTINGS = { 
-    botName: "ZANTA-MD-v2", 
-    ownerName: "Akash Kavindu", // Owner Name (Number නොවේ)
-    prefix: ".",
+    botName: config.DEFAULT_BOT_NAME, 
+    ownerName: config.DEFAULT_OWNER_NAME, // Owner Name (Number නොවේ)
+    prefix: config.DEFAULT_PREFIX,
 };
 
 const app = express();
