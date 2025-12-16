@@ -1,17 +1,23 @@
 // plugins/bot_db.js
 const mongoose = require('mongoose');
+// config.js වෙතින් Owner Number එක ලබා ගනී
+const config = require('../config');
 
 // 🚨 ⚠️ ආරක්ෂාව: ඔබගේ සත්‍ය MongoDB URI එක මෙහි 'YOUR_ACTUAL_MONGO_URI_HERE' වෙනුවට ඇතුළත් කරන්න.
-// මෙම URI එක කිසිවෙකුට ප්‍රසිද්ධියේ දැකීමට නොහැකි වන පරිදි සලකා බලන්න.
 const MONGO_URI = 'mongodb+srv://<Zanta-MD>:<Akashkavindu12345>@cluster0.mongodb.net/?retryWrites=true&w=majority'; 
 // උදාහරණයක්: const MONGO_URI = 'mongodb+srv://user123:passwordXYZ@cluster0.abcde.mongodb.net/?retryWrites=true&w=majority';
 
+
+// 🚨 Owner JID එක මෙහි config එකෙන් ලබා ගනී
+// මෙය එකම DB එකක් තුළ විවිධ Bots වෙන් කිරීමට භාවිතා කරන අද්විතීය යතුරයි.
+const OWNER_JID = config.OWNER_NUMBER + '@s.whatsapp.net';
 
 // -----------------------------------------------------------
 // Database Schema
 // -----------------------------------------------------------
 const SettingsSchema = new mongoose.Schema({
-    id: { type: String, default: 'bot_settings' }, // Unique ID
+    // 🚨 id එක OWNER_JID එකේ අගය ගනී
+    id: { type: String, default: OWNER_JID, unique: true }, 
     botName: { type: String, default: 'ZANTA-MD-v2' },
     ownerName: { type: String, default: 'Akash Kavindu' },
     prefix: { type: String, default: '.' }
@@ -43,17 +49,18 @@ async function connectDB() {
 // -----------------------------------------------------------
 async function getBotSettings() {
     try {
-        let settings = await Settings.findOne({ id: 'bot_settings' });
+        // ⚠️ Owner JID එක යතුර ලෙස භාවිතා කර Document එක සොයයි
+        let settings = await Settings.findOne({ id: OWNER_JID });
         
         if (!settings) {
-            // Settings නොමැති නම්, Default Settings නිර්මාණය කරයි
+            // Settings නොමැති නම්, මෙම Owner සඳහා Default Settings නිර්මාණය කරයි
             settings = await Settings.create({
-                id: 'bot_settings',
+                id: OWNER_JID, // අද්විතීය ID එක ලෙස Owner JID එක භාවිතා කරයි
                 botName: 'ZANTA-MD-v2',
                 ownerName: 'Akash Kavindu',
                 prefix: '.'
             });
-            console.log('Database හි Default Bot Settings නිර්මාණය කරන ලදී.');
+            console.log(`[DB] New Bot Settings created for Owner: ${config.OWNER_NUMBER}`);
         }
         
         return {
@@ -75,12 +82,12 @@ async function updateSetting(key, value) {
         update[key] = value;
         
         const result = await Settings.findOneAndUpdate(
-            { id: 'bot_settings' },
+            { id: OWNER_JID }, // ⚠️ මෙහිදීත් OWNER_JID එක යතුර ලෙස භාවිතා කරයි
             { $set: update },
-            { new: true, upsert: true } // upsert: true මගින් නොමැති නම් අලුතින් නිර්මාණය කරයි
+            { new: true, upsert: true } 
         );
         
-        return !!result; // Successful නම් true, නැතිනම් false යවයි
+        return !!result; 
         
     } catch (e) {
         console.error(`Setting '${key}' යාවත්කාලීන කිරීමේ දෝෂය:`, e);
