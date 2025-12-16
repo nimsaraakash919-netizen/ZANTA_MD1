@@ -1,17 +1,16 @@
 const { cmd, commands } = require("../command");
 const os = require('os');
-const config = require("../config"); 
+// const config = require("../config"); // ⚠️ config වෙනුවට Global Settings භාවිත කරයි 
 
-// 🖼️ MENU Image URL එක 
+// 🖼️ MENU Image URL එක 
 const MENU_IMAGE_URL = "https://github.com/Akashkavindu/ZANTA_MD/blob/main/images/menu-new.jpg?raw=true";
 
 // 🎯 Memory Map to store the last sent Menu message ID for reply functionality.
 // Key: Chat ID (from), Value: Message ID (id)
-const lastMenuMessage = new Map(); // 🚨 FIX: මේ Map එක දැන් index.js වෙත Export කළ යුතුය.
+const lastMenuMessage = new Map();
 
 cmd(
     {
-        // 🚨 FIX: Pattern එක නැවතත් 'menu' ලෙස පමණක් තබා ඇත.
         pattern: "menu",
         react: "📜",
         desc: "Displays the main menu or a category list.",
@@ -26,16 +25,19 @@ cmd(
             from,
             reply,
             args,
-            prefix 
+            // 🚨 prefix මෙහි ලැබෙන්නේ index.js වෙතින් ගණනය කළ අගයයි.
+            // නමුත් අපි Global එකෙන් නැවත ලබා ගනිමු.
         }
     ) => {
         try {
+            
+            // 🚨 DATABASE SETTINGS වෙතින් අගයන් ලබා ගැනීම
+            const finalPrefix = global.CURRENT_BOT_SETTINGS.prefix || '.'; 
+            const botName = global.CURRENT_BOT_SETTINGS.botName || "ZANTA-MD-v2"; 
+            const ownerName = global.CURRENT_BOT_SETTINGS.ownerName || 'Akash ';
+            const mode = process.env.WORK_TYPE || "Public"; // WORK_TYPE තවමත් env එකෙන් ගනී
 
-            const finalPrefix = prefix || config.PREFIX || '.'; 
-            const botName = config.BOT_NAME || "ZANTA-MD"; 
-            const ownerName = config.OWNER_NAME || 'Akash ';
             const totalCommands = commands.filter(c => c.pattern).length;
-            const mode = config.WORK_TYPE || "Public"; 
 
             // 1. Commands Category අනුව Group කිරීම
             const groupedCommands = {};
@@ -64,13 +66,11 @@ cmd(
 
             // ------------------------------------------------------------------
             // A. SELECTION LOGIC (Arguments OR Reply)
-            // index.js මගින් reply selection එක args[0] හෝ m.body ලෙස යවන නිසා, 
-            // මෙහිදී සෘජුවම එම අගය ලබාගත හැක.
             // ------------------------------------------------------------------
 
             let selectedCategory;
-            // 🚨 FIX: args[0] හි අගය (උදා: .menu 1) හෝ m.body හි අගය (උදා: Reply කළ 1) ලබා ගැනීම.
-            let selectionText = args[0]?.toLowerCase() || m.body?.toLowerCase(); 
+            // args[0] හි අගය (උදා: .menu 1) හෝ m.body හි අගය (උදා: Reply කළ 1) ලබා ගැනීම.
+            let selectionText = args[0]?.toLowerCase() || m.body?.toLowerCase(); 
 
             if (selectionText) {
 
@@ -84,16 +84,11 @@ cmd(
 
                 const num = parseInt(selectionText);
 
-                 if (!isNaN(num) && categoryMap[num]) {
-                     selectedCategory = categoryMap[num];
-                 } else {
-                     // Category Name එක හරහා සෙවීම
-                     selectedCategory = categoryKeys.find(cat => cat.toLowerCase() === selectionText);
-                 }
-
-                // Reply එක successful වූ පසු, ID එක ඉවත් කරන්න. (මෙය index.js මගින් ද කළ හැක.)
-                if (selectedCategory && m.quoted) {
-                     
+                if (!isNaN(num) && categoryMap[num]) {
+                    selectedCategory = categoryMap[num];
+                } else {
+                    // Category Name එක හරහා සෙවීම
+                    selectedCategory = categoryKeys.find(cat => cat.toLowerCase() === selectionText);
                 }
             }
 
@@ -109,14 +104,15 @@ cmd(
                 commandList += `╰━─━─━─━─━─━─━─━╯\n`;
 
                 groupedCommands[selectedCategory].forEach((c) => {
-                    const commandPattern = c.pattern.replace(finalPrefix, ''); 
-                    const usage = c.pattern.startsWith(finalPrefix) ? c.pattern : finalPrefix + c.pattern;
+                    const commandPattern = c.pattern; // අපි Pattern එකේ Prefix එක තියන්නේ නැහැ.
+                    const usage = finalPrefix + commandPattern;
                     const descLine = c.desc ? c.desc.split('\n')[0].trim() : 'No description provided.'; 
+                    // desc එකේ < > තිබුණොත් usage එකට <args> එකතු කරයි
                     const usageDisplay = c.desc && c.desc.includes('<') ? usage + ' <args>' : usage; 
 
                     commandList += `\n╭──────────●●►\n`;
                     commandList += `│⛩ Command ☛ ${commandPattern}\n`; 
-                    commandList += `│🌟 Desc ☛ ${descLine}\n`; 
+                    commandList += `│🌟 Desc ☛ ${descLine}\n`; 
                     commandList += `╰──────────●●►\n`;
                 });
 
@@ -125,7 +121,7 @@ cmd(
                 return reply(commandList); 
 
             } else if (selectionText && !selectedCategory) {
-                 // Invalid argument/reply එකක් දුන්නොත්
+                // Invalid argument/reply එකක් දුන්නොත්
                 return reply(`❌ Invalid category number or name: *${selectionText}*\n\nType ${finalPrefix}menu to see available categories.`);
             }
 
@@ -145,7 +141,7 @@ cmd(
 
             menuText += `╭━━〔 📜 MENU LIST 〕━━┈⊷\n`;
 
-            let categoryNumber = 1; 
+            let categoryNumber = 1; 
 
             categoryKeys.forEach(catKey => {
                 const commandCount = groupedCommands[catKey].length;
@@ -160,8 +156,9 @@ cmd(
                     case 'fun': emoji = '🙃'; break;
                     case 'game': emoji = '😎'; break;
                     case 'group': emoji = '👥'; break;
-                    case 'media': emoji = '📸'; break; 
+                    case 'media': emoji = '📸'; break; 
                     case 'search': emoji = '🔍'; break;
+                    case 'setting': emoji = '⚙️'; break; // Settings category එකක් ඇත්නම්
                     default: emoji = '📌'; break;
                 }
 
@@ -197,9 +194,7 @@ cmd(
     }
 );
 
-// 🚨 FIX: index.js වෙත ප්‍රවේශය සඳහා lastMenuMessage Map එක Export කිරීම
+// 🚨 index.js වෙත ප්‍රවේශය සඳහා lastMenuMessage Map එක Export කිරීම
 module.exports = {
     lastMenuMessage
 };
-
-
