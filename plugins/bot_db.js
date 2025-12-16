@@ -1,80 +1,89 @@
+// plugins/bot_db.js
 const mongoose = require('mongoose');
 
-// ----------------------------------------------------
-// ⚠️ තාවකාලික භාවිතය සඳහා: ඔබගේ URI එක මෙහි ඇතුළත් කරන්න
-// ----------------------------------------------------
-const TEMP_MONGO_URI = 'mongodb+srv://<Zanta-MD>:<Akashkavindu12345>@cluster0.mongodb.net/?retryWrites=true&w=majority'; 
-// ----------------------------------------------------
+// 🚨 ⚠️ ආරක්ෂාව: ඔබගේ සත්‍ය MongoDB URI එක මෙහි 'YOUR_ACTUAL_MONGO_URI_HERE' වෙනුවට ඇතුළත් කරන්න.
+// මෙම URI එක කිසිවෙකුට ප්‍රසිද්ධියේ දැකීමට නොහැකි වන පරිදි සලකා බලන්න.
+const MONGO_URI = 'mongodb+srv://<Zanta-MD>:<Akashkavindu12345>@cluster0.mongodb.net/?retryWrites=true&w=majority'; 
+// උදාහරණයක්: const MONGO_URI = 'mongodb+srv://user123:passwordXYZ@cluster0.abcde.mongodb.net/?retryWrites=true&w=majority';
 
-const MONGODB_URI = process.env.MONGO_DB_URI || TEMP_MONGO_URI; 
 
-// ----------------------------------------------------
-// 1. SCHEMA DEFINITION
-// ----------------------------------------------------
-const botSettingsSchema = new mongoose.Schema({
-    id: { type: String, required: true, default: 'bot_config', unique: true }, 
-    botName: { type: String, default: 'ZANTA-MD' }, 
-    ownerName: { type: String, default: 'Akash Kavindu' }, 
-    prefix: { type: String, default: '.' }, 
+// -----------------------------------------------------------
+// Database Schema
+// -----------------------------------------------------------
+const SettingsSchema = new mongoose.Schema({
+    id: { type: String, default: 'bot_settings' }, // Unique ID
+    botName: { type: String, default: 'ZANTA-MD-v2' },
+    ownerName: { type: String, default: 'Akash Kavindu' },
+    prefix: { type: String, default: '.' }
 });
 
-const BotSettings = mongoose.model('BotSettings', botSettingsSchema);
+const Settings = mongoose.model('Settings', SettingsSchema);
 
-// ----------------------------------------------------
-// 2. CONNECTION & DATA FUNCTIONS
-// ----------------------------------------------------
-
-let isConnected = false;
-
+// -----------------------------------------------------------
+// Database Connection Logic
+// -----------------------------------------------------------
 async function connectDB() {
-    if (isConnected || !MONGODB_URI) {
-        if (!MONGODB_URI) {
-            console.error('❌ MONGO_DB_URI is not set. Database features will be unavailable.');
-        }
-        return;
+    if (!MONGO_URI || MONGO_URI === 'YOUR_ACTUAL_MONGO_URI_HERE') {
+        console.error("❌ MongoDB URI එක සකසා නැත. කරුණාකර 'plugins/bot_db.js' ගොනුව පරීක්ෂා කරන්න.");
+        return false;
     }
-
+    
     try {
-        await mongoose.connect(MONGODB_URI);
-        isConnected = true;
-        console.log('✅ MongoDB සම්බන්ධතාවය සාර්ථකයි! (TEMP URI)');
+        await mongoose.connect(MONGO_URI);
+        console.log('✅ MongoDB සම්බන්ධතාවය සාර්ථකයි! (Direct URI)');
+        return true;
     } catch (error) {
-        console.error('❌ MongoDB සම්බන්ධ වීමේ දෝෂය!:', error.message); 
+        console.error('❌ MongoDB සම්බන්ධ වීමේ දෝෂය! (IP/URI ගැටලුවක් විය හැක):', error.message);
+        return false;
     }
 }
 
+// -----------------------------------------------------------
+// CRUD Operations
+// -----------------------------------------------------------
 async function getBotSettings() {
-    await connectDB();
-    // සම්බන්ධතාවය නැත්නම් Default අගයන් යවයි
-    if (!isConnected) return { botName: 'ZANTA-MD', ownerName: 'Akash Kavindu', prefix: '.' }; 
-    
     try {
-        // Document එකක් නැත්නම්, Default අගයන් සහිත අලුත් Document එකක් සාදා Retrun කරයි
-        const settings = await BotSettings.findOneAndUpdate(
-            { id: 'bot_config' }, 
-            {}, 
-            { upsert: true, new: true, setDefaultsOnInsert: true }
-        );
-        return settings;
-    } catch (error) {
-        console.error('Error fetching Bot Settings:', error);
-        return { botName: 'ZANTA-MD', ownerName: 'Akash Kavindu', prefix: '.' };
+        let settings = await Settings.findOne({ id: 'bot_settings' });
+        
+        if (!settings) {
+            // Settings නොමැති නම්, Default Settings නිර්මාණය කරයි
+            settings = await Settings.create({
+                id: 'bot_settings',
+                botName: 'ZANTA-MD-v2',
+                ownerName: 'Akash Kavindu',
+                prefix: '.'
+            });
+            console.log('Database හි Default Bot Settings නිර්මාණය කරන ලදී.');
+        }
+        
+        return {
+            botName: settings.botName,
+            ownerName: settings.ownerName,
+            prefix: settings.prefix
+        };
+        
+    } catch (e) {
+        console.error('Bot Settings Load කිරීමේ දෝෂය:', e);
+        // දෝෂයක් ඇති වුවහොත් Default අගයන් යවයි
+        return { botName: 'ZANTA-MD-v2', ownerName: 'Akash Kavindu', prefix: '.' };
     }
 }
 
 async function updateSetting(key, value) {
-    await connectDB();
-    if (!isConnected) return false;
-
     try {
-        await BotSettings.findOneAndUpdate(
-            { id: 'bot_config' }, 
-            { [key]: value }, 
-            { new: true, upsert: true }
+        const update = {};
+        update[key] = value;
+        
+        const result = await Settings.findOneAndUpdate(
+            { id: 'bot_settings' },
+            { $set: update },
+            { new: true, upsert: true } // upsert: true මගින් නොමැති නම් අලුතින් නිර්මාණය කරයි
         );
-        return true;
-    } catch (error) {
-        console.error(`Error updating ${key}:`, error);
+        
+        return !!result; // Successful නම් true, නැතිනම් false යවයි
+        
+    } catch (e) {
+        console.error(`Setting '${key}' යාවත්කාලීන කිරීමේ දෝෂය:`, e);
         return false;
     }
 }
