@@ -32,12 +32,23 @@ const { File } = require("megajs");
 const { commands, replyHandlers } = require("./command");
 
 // 🚨 Menu Reply Logic සඳහා Import කිරීම
-const { lastMenuMessage } = require("./plugins/menu"); 
+const { lastMenuMessage } = require("./plugins/menu"); 
+
+// 🚨 DB IMPORTS
+const { connectDB, getBotSettings } = require("./plugins/bot_db"); 
+
+// 🚨 GLOBAL SETTINGS (Bot Name, Prefix, Owner Name Database එකෙන් Load කිරීමට)
+global.CURRENT_BOT_SETTINGS = { 
+    botName: "ZANTA-MD-v2", 
+    ownerName: "Akash Kavindu", // Owner Name (Number නොවේ)
+    prefix: ".",
+};
 
 const app = express();
 const port = process.env.PORT || 8000; // 8000 Port එක භාවිතා කරයි
-const prefix = ".";
-const ownerNumber = ["94743404814"];
+// ⚠️ prefix සහ ownerNumber දැන් global.CURRENT_BOT_SETTINGS වෙතින් ලබා ගත යුතුය
+// නමුත් 'ownerNumber' list එක Baileys session එකේ භාවිතය සඳහා Hardcode ලෙස තබමු
+const ownerNumber = ["94743404814"]; // Hardcoded Owner Number List
 const credsPath = path.join(__dirname, "/auth_info_baileys/creds.json");
 
 // 🚨 FIX 1: UNCAUGHT EXCEPTION HANDLING (Crash වීම වැළැක්වීමට)
@@ -51,7 +62,7 @@ process.on('unhandledRejection', (reason, promise) => {
 // --------------------------------------------------------------------------
 
 // 💾 Memory-Based Message Store (Anti-Delete සඳහා)
-const messagesStore = {}; 
+const messagesStore = {}; 
 
 async function ensureSessionFile() {
     if (!fs.existsSync(credsPath)) {
@@ -95,7 +106,15 @@ async function ensureSessionFile() {
 }
 
 async function connectToWA() {
+    
+    // 🚨 1. DATABASE CONNECTION AND SETTINGS LOAD
+    await connectDB();
+    // Database එකෙන් settings Load කර Global Variable එක යාවත්කාලීන කරයි
+    global.CURRENT_BOT_SETTINGS = await getBotSettings();
+
+    console.log(`Bot Name: ${global.CURRENT_BOT_SETTINGS.botName}, Prefix: ${global.CURRENT_BOT_SETTINGS.prefix}`);
     console.log("Connecting ZANTA-MD 🧬...");
+    
     const { state, saveCreds } = await useMultiFileAuthState(
         path.join(__dirname, "/auth_info_baileys/"),
     );
@@ -125,7 +144,12 @@ async function connectToWA() {
         } else if (connection === "open") {
             console.log("✅ ZANTA-MD connected to WhatsApp");
 
-            const up = `ZANTA-MD connected ✅\n\nPREFIX: ${prefix}`;
+            // ⚠️ Bot Name සහ Prefix එක Global Settings වලින් ගනී
+            const currentBotName = global.CURRENT_BOT_SETTINGS.botName;
+            const currentPrefix = global.CURRENT_BOT_SETTINGS.prefix;
+
+            const up = `${currentBotName} connected ✅\n\nPREFIX: ${currentPrefix}`;
+            
             await danuwa.sendMessage(ownerNumber[0] + "@s.whatsapp.net", {
                 image: {
                     url: `https://github.com/Akashkavindu/ZANTA_MD/blob/main/images/alive-new.jpg?raw=true`,
@@ -179,7 +203,7 @@ async function connectToWA() {
 
 
     // ----------------------------------------------------------------------
-    // 🗑️ ANTI-DELETE DETECTION EVENT 
+    // 🗑️ ANTI-DELETE DETECTION EVENT 
     // ----------------------------------------------------------------------
     danuwa.ev.on("messages.delete", async (deletedMessage) => {
 
@@ -191,7 +215,7 @@ async function connectToWA() {
 
         if (storedMessage && storedMessage.message) {
             let messageType = getContentType(storedMessage.message);
-            let deletedContent = 'මෙහි අන්තර්ගතය සොයාගත නොහැක (Media/Sticker).'; 
+            let deletedContent = 'මෙහි අන්තර්ගතය සොයාගත නොහැක (Media/Sticker).'; 
             if (messageType === 'conversation') {
                 deletedContent = storedMessage.message.conversation;
             } else if (messageType === 'extendedTextMessage') {
@@ -203,15 +227,15 @@ async function connectToWA() {
             }
             const senderName = storedMessage.pushName || remoteJid;
 
-            const replyText = 
+            const replyText = 
                 `🗑️ **MESSAGE DELETED (Anti-Delete)**\n` +
                 `*යවන්නා:* ${senderName}\n` +
                 `*වර්ගය:* ${messageType}\n` +
                 `*අන්තර්ගතය:* \n\`\`\`${deletedContent}\`\`\``;
 
             await danuwa.sendMessage(
-                remoteJid, 
-                { text: replyText }, 
+                remoteJid, 
+                { text: replyText }, 
                 { quoted: storedMessage }
             );
             delete messagesStore[deletedMessage.key.id];
@@ -226,7 +250,7 @@ async function connectToWA() {
         
         const mek = messages[0];
         
-        // **⚠️ මෙතැන් සිට Status Messages filter නොකළ යුතුය. 
+        // **⚠️ මෙතැන් සිට Status Messages filter නොකළ යුතුය. 
         // Status Seen Logic එක ඉහත වෙනම Event එකකදී හසුරුවනු ලැබේ.**
 
         for (const msg of messages) {
@@ -265,9 +289,13 @@ async function connectToWA() {
             type === "conversation"
                 ? mek.message.conversation
                 : mek.message[type]?.text || mek.message[type]?.caption || "";
-        const isCmd = body.startsWith(prefix);
+        
+        // 🚨 Prefix එක Global Settings වෙතින් ලබා ගැනීම
+        const currentPrefix = global.CURRENT_BOT_SETTINGS.prefix;
+        
+        const isCmd = body.startsWith(currentPrefix);
         const commandName = isCmd
-            ? body.slice(prefix.length).trim().split(" ")[0].toLowerCase()
+            ? body.slice(currentPrefix.length).trim().split(" ")[0].toLowerCase()
             : "";
         const args = body.trim().split(/ +/).slice(1);
         const q = args.join(" ");
@@ -305,12 +333,14 @@ async function connectToWA() {
         let shouldExecuteMenu = false;
         let replySelection = null;
         
-        if (isMenuReply && body && !body.startsWith(prefix)) {
+        // Menu Reply handling එකේදී Prefix එකක් නැතිවද ක්‍රියාත්මක විය යුත්තේ
+        // Menu Message එකට Reply කළ විට පමණි.
+        if (isMenuReply && body && !body.startsWith(currentPrefix)) { 
             replySelection = body.trim().toLowerCase();
             shouldExecuteMenu = true;
         }
 
-        if (isCmd || shouldExecuteMenu) { 
+        if (isCmd || shouldExecuteMenu) { 
             const executionCommandName = shouldExecuteMenu ? 'menu' : commandName;
             const executionArgs = shouldExecuteMenu ? [replySelection] : args;
             const executionBody = shouldExecuteMenu ? replySelection : body;
@@ -318,7 +348,7 @@ async function connectToWA() {
 
             const cmd = commands.find(
                 (c) =>
-                    c.pattern === executionCommandName || 
+                    c.pattern === executionCommandName || 
                     (c.alias && c.alias.includes(executionCommandName)),
             );
             
@@ -331,7 +361,7 @@ async function connectToWA() {
                     cmd.function(danuwa, mek, m, {
                         from,
                         quoted: mek,
-                        body: executionBody, 
+                        body: executionBody, 
                         isCmd,
                         command: executionCommandName,
                         args: executionArgs,
@@ -382,7 +412,9 @@ async function connectToWA() {
 ensureSessionFile();
 
 app.get("/", (req, res) => {
-    res.send("Hey, ZANTA-MD started ✅");
+    // ⚠️ Bot Name එක Global Settings වලින් ගනී
+    const currentBotName = global.CURRENT_BOT_SETTINGS.botName;
+    res.send(`Hey, ${currentBotName} started ✅`);
 });
 
 app.listen(port, () =>
