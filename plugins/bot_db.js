@@ -4,7 +4,7 @@ const mongoose = require('mongoose');
 const config = require('../config');
 
 // 🚨 ⚠️ ආරක්ෂාව: ඔබගේ සත්‍ය MongoDB URI එක මෙහි ඇතුළත් කරන්න.
-const MONGO_URI = 'mongodb+srv://<Zanta-MD>:<Akashkavindu12345>@cluster0.mongodb.net/?retryWrites=true&w=majority'; 
+const MONGO_URI = 'mongodb+srv://Zanta-MD:Akashkavindu12345@cluster0.y7xsqsi.mongodb.net/?appName=Cluster0'; 
 
 // 🚨 ප්‍රධාන යතුර: OWNER_NUMBER පමණක් භාවිතා කරයි (Domain/Suffix රහිතව)
 const OWNER_KEY = config.OWNER_NUMBER;
